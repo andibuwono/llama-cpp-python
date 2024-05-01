@@ -8,7 +8,8 @@ import random
 import string
 
 from contextlib import ExitStack
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, Protocol, cast
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing_extensions import Literal, Protocol
 
 import jinja2
 
@@ -189,7 +190,9 @@ class Jinja2ChatFormatter(ChatFormatter):
         self.eos_token = eos_token
         self.bos_token = bos_token
         self.add_generation_prompt = add_generation_prompt
-        self.stop_token_ids = set(stop_token_ids) if stop_token_ids is not None else None
+        self.stop_token_ids = (
+            set(stop_token_ids) if stop_token_ids is not None else None
+        )
 
         self._environment = jinja2.Environment(
             loader=jinja2.BaseLoader(),
@@ -224,14 +227,17 @@ class Jinja2ChatFormatter(ChatFormatter):
 
         stopping_criteria = None
         if self.stop_token_ids is not None:
+
             def stop_on_last_token(
-                    tokens: npt.NDArray[np.intc],
-                    logits: npt.NDArray[np.single]
+                tokens: npt.NDArray[np.intc], logits: npt.NDArray[np.single]
             ) -> bool:
                 return tokens[-1] in self.stop_token_ids
+
             stopping_criteria = llama.StoppingCriteriaList([stop_on_last_token])
 
-        return ChatFormatterResponse(prompt=prompt, stop=[self.eos_token], stopping_criteria=stopping_criteria)
+        return ChatFormatterResponse(
+            prompt=prompt, stop=[self.eos_token], stopping_criteria=stopping_criteria
+        )
 
     def to_chat_handler(self) -> LlamaChatCompletionHandler:
         return chat_formatter_to_chat_completion_handler(self)
@@ -428,7 +434,9 @@ def _convert_completion_to_chat_function(
                                             "type": "function",
                                             "function": {
                                                 "name": tool_name,
-                                                "arguments": chunk["choices"][0]["text"],
+                                                "arguments": chunk["choices"][0][
+                                                    "text"
+                                                ],
                                             },
                                         }
                                     ],
@@ -463,9 +471,7 @@ def _convert_completion_to_chat_function(
                                         "type": "function",
                                         "function": {
                                             "name": tool_name,
-                                            "arguments": chunk["choices"][0][
-                                                "text"
-                                            ],
+                                            "arguments": chunk["choices"][0]["text"],
                                         },
                                     }
                                 ],
@@ -496,7 +502,6 @@ def _convert_completion_to_chat_function(
                 }
 
         return _stream_response_to_function_stream(chunks)
-
 
 
 def chat_formatter_to_chat_completion_handler(
@@ -558,7 +563,9 @@ def chat_formatter_to_chat_completion_handler(
             stopping_criteria = result.stopping_criteria
 
         if response_format is not None and response_format["type"] == "json_object":
-            grammar = _grammar_for_response_format(response_format, verbose=llama.verbose)
+            grammar = _grammar_for_response_format(
+                response_format, verbose=llama.verbose
+            )
 
         # Convert legacy functions to tools
         if functions is not None:
@@ -585,7 +592,11 @@ def chat_formatter_to_chat_completion_handler(
                 }
 
         tool = None
-        if tool_choice is not None and isinstance(tool_choice, dict) and tools is not None:
+        if (
+            tool_choice is not None
+            and isinstance(tool_choice, dict)
+            and tools is not None
+        ):
             name = tool_choice["function"]["name"]
             tool = next((t for t in tools if t["function"]["name"] == name), None)
             if tool is None:
@@ -730,8 +741,10 @@ def guess_chat_format_from_gguf_metadata(metadata: Dict[str, str]) -> Optional[s
     if metadata["tokenizer.chat_template"] == CHATML_CHAT_TEMPLATE:
         return "chatml"
 
-    if (metadata["tokenizer.chat_template"] == MISTRAL_INSTRUCT_CHAT_TEMPLATE or
-            metadata["tokenizer.chat_template"] == MIXTRAL_INSTRUCT_CHAT_TEMPLATE):
+    if (
+        metadata["tokenizer.chat_template"] == MISTRAL_INSTRUCT_CHAT_TEMPLATE
+        or metadata["tokenizer.chat_template"] == MIXTRAL_INSTRUCT_CHAT_TEMPLATE
+    ):
         return "mistral-instruct"
 
     if metadata["tokenizer.chat_template"] == LLAMA3_INSTRUCT_CHAT_TEMPLATE:
@@ -867,13 +880,15 @@ def _format_chatglm3(
             ret += role
     return ret
 
-def _grammar_for_json(verbose:bool=False):
-    return llama_grammar.LlamaGrammar.from_string(llama_grammar.JSON_GBNF, verbose=verbose)
+
+def _grammar_for_json(verbose: bool = False):
+    return llama_grammar.LlamaGrammar.from_string(
+        llama_grammar.JSON_GBNF, verbose=verbose
+    )
+
 
 def _grammar_for_json_schema(
-        schema: str,
-        verbose: bool = False,
-        fallback_to_json: bool = True
+    schema: str, verbose: bool = False, fallback_to_json: bool = True
 ):
     try:
         return llama_grammar.LlamaGrammar.from_json_schema(schema, verbose=verbose)
@@ -883,9 +898,10 @@ def _grammar_for_json_schema(
         else:
             raise e
 
+
 def _grammar_for_response_format(
-        response_format: llama_types.ChatCompletionRequestResponseFormat,
-        verbose: bool = False
+    response_format: llama_types.ChatCompletionRequestResponseFormat,
+    verbose: bool = False,
 ):
     if response_format["type"] != "json_object":
         return None
@@ -896,6 +912,7 @@ def _grammar_for_response_format(
         )
     else:
         return _grammar_for_json(verbose=verbose)
+
 
 ### Chat Formats ###
 
@@ -1240,10 +1257,7 @@ def format_mistral_instruct(
             and isinstance(message["content"], str)
         ):
             prompt += "[INST] " + message["content"]
-        elif (
-            message["role"] == "assistant"
-            and message["content"] is not None
-        ):
+        elif message["role"] == "assistant" and message["content"] is not None:
             prompt += " [/INST]" + message["content"] + eos
     prompt += " [/INST]"
     return ChatFormatterResponse(prompt=prompt, stop=stop)
@@ -1930,7 +1944,9 @@ def functionary_v1_v2_chat_handler(
             logits_processor=logits_processor,
             grammar=grammar,
         )
-        completion_or_completion_chunks["choices"][0]["text"] = completion_or_completion_chunks["choices"][0]["text"].lstrip()
+        completion_or_completion_chunks["choices"][0]["text"] = (
+            completion_or_completion_chunks["choices"][0]["text"].lstrip()
+        )
         return _convert_completion_to_chat(completion_or_completion_chunks, stream=stream)  # type: ignore
 
     assert stream is False  # TODO: support stream mode
@@ -1969,27 +1985,30 @@ def functionary_v1_v2_chat_handler(
         return grammar
 
     def create_completion(stop):
-        completion = cast(llama_types.Completion, llama.create_completion(
-            prompt=prompt,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            min_p=min_p,
-            typical_p=typical_p,
-            stream=False,
-            stop=stop,
-            max_tokens=max_tokens,
-            presence_penalty=presence_penalty,
-            frequency_penalty=frequency_penalty,
-            repeat_penalty=repeat_penalty,
-            tfs_z=tfs_z,
-            mirostat_mode=mirostat_mode,
-            mirostat_tau=mirostat_tau,
-            mirostat_eta=mirostat_eta,
-            model=model,
-            logits_processor=logits_processor,
-            grammar=grammar,
-        ))
+        completion = cast(
+            llama_types.Completion,
+            llama.create_completion(
+                prompt=prompt,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                min_p=min_p,
+                typical_p=typical_p,
+                stream=False,
+                stop=stop,
+                max_tokens=max_tokens,
+                presence_penalty=presence_penalty,
+                frequency_penalty=frequency_penalty,
+                repeat_penalty=repeat_penalty,
+                tfs_z=tfs_z,
+                mirostat_mode=mirostat_mode,
+                mirostat_tau=mirostat_tau,
+                mirostat_eta=mirostat_eta,
+                model=model,
+                logits_processor=logits_processor,
+                grammar=grammar,
+            ),
+        )
 
         return completion
 
@@ -2015,7 +2034,6 @@ def functionary_v1_v2_chat_handler(
         completion = create_completion(stop=stops)
         completion_text = completion["choices"][0]["text"]
         completion_tokens += completion["usage"]["completion_tokens"]
-        
 
         # If the generation does not involve a function call
         if (
@@ -2081,18 +2099,25 @@ def functionary_v1_v2_chat_handler(
                 completion_tokens += completion["usage"]["completion_tokens"]
                 if function_name == "all":
                     if completion_text.endswith("\n<|from|>assistant\n"):
-                        content += completion_text[:-len("\n<|from|>assistant\n")]
+                        content += completion_text[: -len("\n<|from|>assistant\n")]
                     if completion_text.endswith("\n<|from|> assistant\n"):
                         content += completion_text[-len("\n<|from|> assistant\n")]
                     else:
                         content += completion_text
                     content = content.lstrip()
                     # Check whether the model wants to generate another turn
-                    if "<|from|> assistant" in completion_text or "<|from|>assistant" in completion_text:
+                    if (
+                        "<|from|> assistant" in completion_text
+                        or "<|from|>assistant" in completion_text
+                    ):
                         if completion_text.endswith("\n<|from|>assistant\n"):
-                            cleaned_completion_text = completion_text[:-len("\n<|from|>assistant\n")].strip()
+                            cleaned_completion_text = completion_text[
+                                : -len("\n<|from|>assistant\n")
+                            ].strip()
                         elif completion_text.endswith("\n<|from|> assistant\n"):
-                            cleaned_completion_text = completion_text[-len("\n<|from|> assistant\n")].strip()
+                            cleaned_completion_text = completion_text[
+                                -len("\n<|from|> assistant\n")
+                            ].strip()
                         else:
                             cleaned_completion_text = completion_text.strip()
                         prompt += f"{cleaned_completion_text}\n<|from|>assistant\n<|recipient|>"
@@ -2105,7 +2130,10 @@ def functionary_v1_v2_chat_handler(
                     grammar = None
                     completion = create_completion(stop=stops)
                     completion_tokens += completion["usage"]["completion_tokens"]
-                    if "<|from|> assistant" in completion["choices"][0]["text"] or "<|from|>assistant" in completion["choices"][0]["text"]:
+                    if (
+                        "<|from|> assistant" in completion["choices"][0]["text"]
+                        or "<|from|>assistant" in completion["choices"][0]["text"]
+                    ):
                         prompt += "\n<|from|>assistant\n<|recipient|>"
                     else:
                         break
@@ -2133,7 +2161,10 @@ def functionary_v1_v2_chat_handler(
         )
 
     # TODO: support stream mode
-    function_call_dict: Union[Dict[str, str], Dict[Literal["function_call"], llama_types.ChatCompletionRequestAssistantMessageFunctionCall]] = {}
+    function_call_dict: Union[
+        Dict[str, str],
+        Dict[str, llama_types.ChatCompletionRequestAssistantMessageFunctionCall],
+    ] = {}
     if len(tool_calls) > 0:
         if tools is not None:
             function_call_dict["tool_calls"] = tool_calls
@@ -2165,7 +2196,7 @@ def functionary_v1_v2_chat_handler(
 
 
 class Llava15ChatHandler:
-    DEFAULT_SYSTEM_MESSAGE =  "A chat between a curious human and an artificial intelligence assistant.  The assistant gives helpful, detailed, and polite answers to the human's questions."
+    DEFAULT_SYSTEM_MESSAGE = "A chat between a curious human and an artificial intelligence assistant.  The assistant gives helpful, detailed, and polite answers to the human's questions."
 
     CHAT_FORMAT = (
         "{% for message in messages %}"
@@ -2178,7 +2209,6 @@ class Llava15ChatHandler:
         "{% endif %}"
         "{% if message.content is iterable %}"
         "\nUSER: "
-
         "{% for content in message.content %}"
         "{% if content.type == 'image_url' and content.image_url is string %}"
         "{{ content.image_url }}"
@@ -2187,13 +2217,11 @@ class Llava15ChatHandler:
         "{{ content.image_url.url }}"
         "{% endif %}"
         "{% endfor %}"
-
         "{% for content in message.content %}"
         "{% if content.type == 'text' %}"
         "{{ content.text }}"
         "{% endif %}"
         "{% endfor %}"
-
         "{% endif %}"
         "{% endif %}"
         "{% if message.role == 'assistant' and message.content is not none %}"
@@ -2211,30 +2239,30 @@ class Llava15ChatHandler:
         self.clip_model_path = clip_model_path
         self.verbose = verbose
 
-        self._llava_cpp = llava_cpp # TODO: Fix
+        self._llava_cpp = llava_cpp  # TODO: Fix
         self._exit_stack = ExitStack()
-        self._last_image_embed: Optional[llava_cpp.CtypesPointer[llava_cpp.llava_image_embed]] = None
+        self._last_image_embed: Optional[
+            llava_cpp.CtypesPointer[llava_cpp.llava_image_embed]
+        ] = None
         self._last_image_hash: Optional[int] = None
 
         if not os.path.exists(clip_model_path):
             raise ValueError(f"Clip model path does not exist: {clip_model_path}")
 
         with suppress_stdout_stderr(disable=self.verbose):
-            clip_ctx = self._llava_cpp.clip_model_load(
-                self.clip_model_path.encode(), 0
-            )
+            clip_ctx = self._llava_cpp.clip_model_load(self.clip_model_path.encode(), 0)
 
             if clip_ctx is None:
                 raise ValueError(f"Failed to load clip model: {clip_model_path}")
-            
+
             self.clip_ctx = clip_ctx
 
             def clip_free():
                 with suppress_stdout_stderr(disable=self.verbose):
                     self._llava_cpp.clip_free(self.clip_ctx)
-            
+
             self._exit_stack.callback(clip_free)
-        
+
         def last_image_embed_free():
             with suppress_stdout_stderr(disable=self.verbose):
                 if self._last_image_embed is not None:
@@ -2289,7 +2317,11 @@ class Llava15ChatHandler:
 
         system_prompt = _get_system_message(messages)
         if system_prompt == "":
-            messages = [llama_types.ChatCompletionRequestSystemMessage(role="system", content=self.DEFAULT_SYSTEM_MESSAGE)] + messages
+            messages = [
+                llama_types.ChatCompletionRequestSystemMessage(
+                    role="system", content=self.DEFAULT_SYSTEM_MESSAGE
+                )
+            ] + messages
 
         image_urls = self.get_image_urls(messages)
         template = jinja2.Template(self.CHAT_FORMAT)
@@ -2297,16 +2329,20 @@ class Llava15ChatHandler:
         split_text = self.split_text_on_image_urls(text, image_urls)
 
         def embed_image_bytes(image_bytes: bytes):
-            if self._last_image_embed is not None and self._last_image_hash is not None and hash(image_bytes) == self._last_image_hash:
+            if (
+                self._last_image_embed is not None
+                and self._last_image_hash is not None
+                and hash(image_bytes) == self._last_image_hash
+            ):
                 return self._last_image_embed
             with suppress_stdout_stderr(disable=self.verbose):
-                embed = (
-                    self._llava_cpp.llava_image_embed_make_with_bytes(
-                        self.clip_ctx,
-                        llama.context_params.n_threads_batch,
-                        (ctypes.c_uint8 * len(image_bytes)).from_buffer(bytearray(image_bytes)),
-                        len(image_bytes),
-                    )
+                embed = self._llava_cpp.llava_image_embed_make_with_bytes(
+                    self.clip_ctx,
+                    llama.context_params.n_threads_batch,
+                    (ctypes.c_uint8 * len(image_bytes)).from_buffer(
+                        bytearray(image_bytes)
+                    ),
+                    len(image_bytes),
                 )
                 self._last_image_embed = embed
                 self._last_image_hash = hash(image_bytes)
@@ -2318,13 +2354,13 @@ class Llava15ChatHandler:
             if type_ == "text":
                 tokens = llama.tokenize(value.encode("utf8"), add_bos=i == 0)
                 if llama.n_tokens + len(tokens) > llama.n_ctx():
-                    raise ValueError("Prompt exceeds n_ctx") # TODO: Fix
+                    raise ValueError("Prompt exceeds n_ctx")  # TODO: Fix
                 llama.eval(tokens)
             else:
                 image_bytes = self.load_image(value)
                 embed = embed_image_bytes(image_bytes)
                 if llama.n_tokens + embed.contents.n_image_pos > llama.n_ctx():
-                    raise ValueError("Prompt exceeds n_ctx") # TODO: Fix
+                    raise ValueError("Prompt exceeds n_ctx")  # TODO: Fix
                 n_past = ctypes.c_int(llama.n_tokens)
                 n_past_p = ctypes.pointer(n_past)
                 with suppress_stdout_stderr(disable=self.verbose):
@@ -2367,7 +2403,11 @@ class Llava15ChatHandler:
                 }
 
         tool = None
-        if tool_choice is not None and isinstance(tool_choice, dict) and tools is not None:
+        if (
+            tool_choice is not None
+            and isinstance(tool_choice, dict)
+            and tools is not None
+        ):
             name = tool_choice["function"]["name"]
             tool = next((t for t in tools if t["function"]["name"] == name), None)
             if tool is None:
@@ -2484,9 +2524,10 @@ class Llava15ChatHandler:
     ) -> "Llava15ChatHandler":
         import fnmatch
         from pathlib import Path
+
         try:
-            from huggingface_hub import hf_hub_download, HfFileSystem # type: ignore
-            from huggingface_hub.utils import validate_repo_id # type: ignore
+            from huggingface_hub import hf_hub_download, HfFileSystem  # type: ignore
+            from huggingface_hub.utils import validate_repo_id  # type: ignore
         except ImportError:
             raise ImportError(
                 "Llama.from_pretrained requires the huggingface-hub package. "
@@ -2499,7 +2540,7 @@ class Llava15ChatHandler:
 
         files = [
             file["name"] if isinstance(file, dict) else file
-            for file in hffs.ls(repo_id) # type: ignore
+            for file in hffs.ls(repo_id)  # type: ignore
         ]
 
         # split each file into repo_id, subfolder, filename
@@ -2555,6 +2596,7 @@ class Llava15ChatHandler:
             **kwargs,
         )
 
+
 class ObsidianChatHandler(Llava15ChatHandler):
     # Prompt Format
     # The model followed ChatML format. However, with ### as the seperator
@@ -2581,7 +2623,6 @@ class ObsidianChatHandler(Llava15ChatHandler):
         "{{ message.content }}"
         "{% endif %}"
         "{% if message.content is iterable %}"
-
         "{% for content in message.content %}"
         "{% if content.type == 'image_url' and content.image_url is string %}"
         "{{ content.image_url }}"
@@ -2590,13 +2631,11 @@ class ObsidianChatHandler(Llava15ChatHandler):
         "{{ content.image_url.url }}"
         "{% endif %}"
         "{% endfor %}"
-
         "{% for content in message.content %}"
         "{% if content.type == 'text' %}"
         "{{ content.text }}"
         "{% endif %}"
         "{% endfor %}"
-
         "{% endif %}"
         "###\n"
         "{% endif %}"
@@ -2613,6 +2652,7 @@ class ObsidianChatHandler(Llava15ChatHandler):
         "{% endif %}"
     )
 
+
 class MoondreamChatHandler(Llava15ChatHandler):
     # Chat Format:
     # f"<image>\n\n{chat_history}Question: {question}\n\nAnswer:"
@@ -2620,7 +2660,6 @@ class MoondreamChatHandler(Llava15ChatHandler):
         "{% for message in messages %}"
         "{% if message.role == 'user' %}"
         "{% if message.content is iterable %}"
-
         # <image>
         "{% for content in message.content %}"
         "{% if content.type == 'image_url' %}"
@@ -2632,34 +2671,29 @@ class MoondreamChatHandler(Llava15ChatHandler):
         "{% endif %}"
         "{% endif %}"
         "{% endfor %}"
-
         # Question:
         "{% for content in message.content %}"
         "{% if content.type == 'text' %}"
         "Question: {{ content.text }}\n\n"
         "{% endif %}"
         "{% endfor %}"
-
         "{% endif %}"
-
         # Question:
         "{% if message.content is string %}"
         "Question: {{ message.content }}\n\n"
         "{% endif %}"
-
         "{% endif %}"
-
         # Answer:
         "{% if message.role == 'assistant' %}"
         "Answer:{{ message.content }}\n\n"
         "{% endif %}"
         "{% endfor %}"
-
         # Generation prompt
         "{% if add_generation_prompt %}"
         "Answer:"
         "{% endif %}"
     )
+
 
 class Llava16ChatHandler(Llava15ChatHandler):
     DEFAULT_SYSTEM_MESSAGE = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions. "
@@ -2674,7 +2708,6 @@ class Llava16ChatHandler(Llava15ChatHandler):
         "{% endif %}"
         "{% if message.role == 'user' %}"
         "{% if message.content is iterable %}"
-
         # <image>
         "{% for content in message.content %}"
         "{% if content.type == 'image_url' %}"
@@ -2686,34 +2719,29 @@ class Llava16ChatHandler(Llava15ChatHandler):
         "{% endif %}"
         "{% endif %}"
         "{% endfor %}"
-
         # Question:
         "{% for content in message.content %}"
         "{% if content.type == 'text' %}"
         "{{ content.text }}"
         "{% endif %}"
         "{% endfor %}"
-
         "{% endif %}"
-        
         # Question:
         "{% if message.content is string %}"
         "{{ message.content }}"
         "{% endif %}"
-
         "{% endif %}"
-
         # Answer:
         "{% if message.role == 'assistant' %}"
         "{{ message.content }}"
         "{% endif %}"
         "{% endfor %}"
-
         # Generation prompt
         "{% if add_generation_prompt %}"
         "Answer:"
         "{% endif %}"
     )
+
 
 class NanoLlavaChatHandler(Llava15ChatHandler):
     # Prompt Format
@@ -2739,7 +2767,6 @@ class NanoLlavaChatHandler(Llava15ChatHandler):
         "{{ message.content }}"
         "{% endif %}"
         "{% if message.content is iterable %}"
-
         "{% for content in message.content %}"
         "{% if content.type == 'image_url' and content.image_url is string %}"
         "{{ content.image_url }}"
@@ -2748,13 +2775,11 @@ class NanoLlavaChatHandler(Llava15ChatHandler):
         "{{ content.image_url.url }}"
         "{% endif %}"
         "{% endfor %}"
-
         "{% for content in message.content %}"
         "{% if content.type == 'text' %}"
         "{{ content.text }}"
         "{% endif %}"
         "{% endfor %}"
-
         "{% endif %}"
         "<|im_end|>"
         "{% endif %}"
@@ -2888,7 +2913,11 @@ def chatml_function_calling(
                 },
             }
 
-    stop = [stop, "<|im_end|>"] if isinstance(stop, str) else stop + ["<|im_end|>"] if stop else ["<|im_end|>"]
+    stop = (
+        [stop, "<|im_end|>"]
+        if isinstance(stop, str)
+        else stop + ["<|im_end|>"] if stop else ["<|im_end|>"]
+    )
 
     # Case 1: No tool choice by user
     if (
@@ -3101,7 +3130,9 @@ def chatml_function_calling(
                 logits_processor=logits_processor,
                 grammar=grammar,
             )
-            completion_or_chunks = cast(llama_types.CreateCompletionResponse, completion_or_chunks)
+            completion_or_chunks = cast(
+                llama_types.CreateCompletionResponse, completion_or_chunks
+            )
             completions.append(completion_or_chunks)
             completions_tool_name.append(tool_name)
             prompt += completion_or_chunks["choices"][0]["text"]
@@ -3138,12 +3169,22 @@ def chatml_function_calling(
             )
 
         # Merge completions
-        function_call_dict: Union[Dict[str, str], Dict[Literal["function_call"], llama_types.ChatCompletionRequestAssistantMessageFunctionCall]] = { 
-            "function_call": {
-                "name": tool_name,
-                "arguments": completions[0]["choices"][0]["text"],
+        function_call_dict: Union[
+            Dict[str, str],
+            Dict[
+                Literal["function_call"],
+                llama_types.ChatCompletionRequestAssistantMessageFunctionCall,
+            ],
+        ] = (
+            {
+                "function_call": {
+                    "name": tool_name,
+                    "arguments": completions[0]["choices"][0]["text"],
+                }
             }
-        } if len(completions) == 1 else {}
+            if len(completions) == 1
+            else {}
+        )
         return {
             "id": "chat" + completion["id"],
             "object": "chat.completion",
@@ -3174,13 +3215,17 @@ def chatml_function_calling(
                                 zip(completions_tool_name, completions)
                             )
                         ],
-                        **function_call_dict
+                        **function_call_dict,
                     },
                 }
             ],
             "usage": {
                 "completion_tokens": sum(
-                    completion["usage"]["completion_tokens"] if "usage" in completion else 0
+                    (
+                        completion["usage"]["completion_tokens"]
+                        if "usage" in completion
+                        else 0
+                    )
                     for completion in completions
                 ),
                 "prompt_tokens": sum(

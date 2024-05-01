@@ -210,7 +210,7 @@ class CreateChatCompletionRequest(BaseModel):
     )
     logprobs: Optional[bool] = Field(
         default=False,
-        description="Whether to output the logprobs or not. Default is True"
+        description="Whether to output the logprobs or not. Default is True",
     )
     top_logprobs: Optional[int] = Field(
         default=None,
