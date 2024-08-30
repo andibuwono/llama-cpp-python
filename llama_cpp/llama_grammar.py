@@ -1569,7 +1569,8 @@ class SchemaConverter:
         schema_format = schema.get("format")
         rule_name = name + "-" if name in RESERVED_NAMES else name or "root"
 
-        if (ref := schema.get("$ref")) is not None:
+        ref = schema.get("$ref")
+        if ref is not None:
             return self._add_rule(rule_name, self._resolve_ref(ref))
 
         elif "oneOf" in schema or "anyOf" in schema:
@@ -1615,7 +1616,8 @@ class SchemaConverter:
             hybrid_name = name
 
             def add_component(comp_schema, is_required):
-                if (ref := comp_schema.get("$ref")) is not None:
+                ref = comp_schema.get("$ref")
+                if ref is not None:
                     comp_schema = self._refs[ref]
 
                 if "properties" in comp_schema:

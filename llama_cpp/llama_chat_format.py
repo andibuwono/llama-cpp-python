@@ -14,13 +14,12 @@ from typing import (
     Dict,
     Iterator,
     List,
-    Literal,
     Optional,
     Tuple,
     Union,
-    Protocol,
     cast,
 )
+from typing_extensions import Literal, Protocol
 
 import jinja2
 from jinja2.sandbox import ImmutableSandboxedEnvironment

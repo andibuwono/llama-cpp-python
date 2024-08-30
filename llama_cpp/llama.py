@@ -15,7 +15,6 @@ import multiprocessing
 from typing import (
     Any,
     List,
-    Literal,
     Optional,
     Union,
     Generator,
@@ -25,6 +24,7 @@ from typing import (
     Callable,
     Dict,
 )
+from typing_extensions import Literal
 from collections import deque
 from pathlib import Path
 

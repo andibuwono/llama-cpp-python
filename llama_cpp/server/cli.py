@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import argparse
 
-from typing import List, Literal, Union, Any, Type, TypeVar
+from typing import List, Union, Any, Type, TypeVar
+from typing_extensions import Literal
 
 from pydantic import BaseModel
 

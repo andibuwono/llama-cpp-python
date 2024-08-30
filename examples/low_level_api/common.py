@@ -3,7 +3,7 @@ import argparse
 import re
 
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Dict
 
 # Based on https://github.com/ggerganov/llama.cpp/blob/master/examples/common.cpp
 
@@ -19,7 +19,7 @@ class GptParams:
     n_keep: int = 0
 
     ignore_eos: bool = False
-    logit_bias: dict[int, float] = field(default_factory=dict)
+    logit_bias: Dict[int, float] = field(default_factory=dict)
     top_k: int = 40
     top_p: float = 0.95
     tfs_z: float = 1.00
@@ -380,7 +380,8 @@ def gpt_params_parse(argv=None):
 
     if logit_bias_str != None:
         for i in logit_bias_str:
-            if m := re.match(r"(\d+)([-+]\d+)", i):
+            m = re.match(r"(\d+)([-+]\d+)", i)
+            if m:
                 params.logit_bias[int(m.group(1))] = float(m.group(2))
 
     return params

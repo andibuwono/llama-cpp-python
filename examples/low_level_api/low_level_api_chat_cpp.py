@@ -688,7 +688,8 @@ n_keep = {self.params.n_keep}
     # read user input
     def read_input(self):
         out = ""
-        while (t := input()).endswith("\\"):
+        t = input()
+        while t.endswith("\\"):
             out += t[:-1] + "\n"
         return out + t + "\n"
 
